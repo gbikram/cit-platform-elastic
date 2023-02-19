@@ -1,0 +1,61 @@
+version: '3.6'
+services:
+  Elasticsearch:
+    image: elasticsearch:7.16.2
+    mem_limit: 4g
+    container_name: elasticsearch
+    restart: unless-stopped 
+    volumes:
+    - elastic_data:/usr/share/elasticsearch/data/
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      discovery.type: single-node    
+      xpack.security.enabled: true
+      xpack.security.authc.api_key.enabled: true
+      ELASTIC_PASSWORD: "p@ssw0rd"
+    ports:
+    - '9200:9200'
+    - '9300:9300'
+    networks:
+      - elk
+
+  Logstash:
+    image: logstash:7.16.2
+    mem_limit: 3g
+    container_name: logstash
+    restart: unless-stopped 
+    volumes:
+    - ./logstash/:/logstash_dir
+    command: logstash -f /logstash_dir/logstash.conf 
+    depends_on:
+      - Elasticsearch
+    ports:
+    - '9600:9600'
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"    
+      xpack.monitoring.elasticsearch.url: "http://elasticsearch:9200"
+      xpack.monitoring.elasticsearch.username: "elastic"
+      xpack.monitoring.elasticsearch.password: "p@ssw0rd"
+    networks:
+      - elk
+
+  Kibana:
+    image: kibana:7.16.2
+    mem_limit: 1g
+    container_name: kibana
+    restart: unless-stopped 
+    ports:
+    - '5601:5601'
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME="elastic"
+      - ELASTICSEARCH_PASSWORD="p@ssw0rd"
+    depends_on:
+      - Elasticsearch  
+    networks:
+      - elk
+volumes:
+  elastic_data: {}
+
+networks:
+  elk:
